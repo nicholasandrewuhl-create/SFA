@@ -1,0 +1,73 @@
+SCRAMBLE FOR AFRICA — NO-INSTALL PUBLISHING GUIDE
+===================================================
+
+You DO NOT need to install Node.js, Git, Replit, Firebase, or any software.
+Everything below happens through your existing web browser.
+
+BEFORE YOU START
+- You need a free GitHub account: https://github.com/signup
+- You need a free Cloudflare account: https://dash.cloudflare.com/sign-up
+- Your school must allow students to reach the published Cloudflare website.
+- You need to Extract All from this ZIP using Windows' built-in ZIP support.
+- The game DOES NOT have a public link yet. The link appears after you deploy it.
+
+PART A — PUT THE GAME ON GITHUB (ONE-TIME, NO INSTALL)
+1. Go to https://github.com/new and create a repository named
+   scramble-colonial-race. Set it to PRIVATE if you wish.
+   Leave 'Add a README', '.gitignore', and 'license' unchecked.
+2. Open the new repository. Click 'uploading an existing file', or
+   'Add file' -> 'Upload files'.
+3. Open this extracted game folder on your computer.
+   Select all the FILES AND SUBFOLDERS *INSIDE* this folder and drag
+   them to the GitHub upload area. IMPORTANT: do not drag the outside
+   containing folder or the ZIP file itself. You want wrangler.jsonc
+   and package.json at the ROOT of the GitHub repository.
+4. Scroll down and click 'Commit changes'. Wait until the files appear.
+   Confirm you can see these at the repo root:
+     wrangler.jsonc   package.json   worker/   public/
+
+PART B — DEPLOY THE GAME IN CLOUDFLARE (ONE-TIME, NO INSTALL)
+5. Open https://dash.cloudflare.com/ and choose Workers & Pages.
+6. Select 'Create application', then choose GitHub as the Git provider.
+   Allow Cloudflare access to the repo you just created.
+7. Choose the 'scramble-colonial-race' GitHub repository.
+8. If Cloudflare asks for settings, use:
+     Worker / project name: scramble-colonial-race
+     Production branch: main
+     Root directory: / (repository root)
+     Build command: npm run build
+     Deploy command: npx wrangler deploy
+   Note: These commands run on CLOUDFLARE'S servers. You never type
+   them into a terminal or install anything on your computer.
+9. Click 'Save and Deploy'. Wait for a successful production deployment.
+10. Open the WORKERS.DEV production URL Cloudflare displays. Bookmark it.
+    This is your permanent game website.
+
+If deployment fails:
+- Check that Cloudflare's project name matches the 'name' property
+  in wrangler.jsonc (scramble-colonial-race).
+- Check that public/ and worker/ were uploaded to the repository ROOT.
+- Check the Cloudflare build log for the precise error and send it to
+  ChatGPT for a targeted repair. Do NOT purchase an upgrade to fix it.
+- Cloudflare labels may change. Look for GitHub Repository import and
+  Workers Builds if the menus look different.
+
+PART C — START A LIVE CLASSROOM GAME (EACH CLASS)
+11. On your teacher computer, open your new Cloudflare website.
+12. Choose 'Host a Cloudflare game room' and then 'Create live classroom room'.
+13. Click 'Copy student link' and paste it into Canvas. The copied link
+    includes the game's six-character room code automatically.
+14. Students click the link on their Chromebooks, choose a country,
+    and request a seat. They install nothing and make no accounts.
+15. In the teacher dashboard, approve and assign each team to a
+    European country, then start the game and advance turns.
+
+WHAT WE'VE ACTUALLY TESTED
+- Game engine and simulated room/server tests pass locally.
+- This particular copy has NOT been deployed into your Cloudflare account.
+- Live school-Chromebook, firewall, and end-to-end Cloudflare deployment
+  tests remain to be performed before classroom use.
+- An empty GitHub repository is only source storage; the live shared
+  game requires the Cloudflare deployment step.
+
+This setup requires two free ONLINE ACCOUNTS but NO SOFTWARE INSTALLATIONS.

@@ -1,0 +1,15 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "scramble-colonial-race",
+  "main": "worker/index.js",
+  "compatibility_date": "2026-10-22",
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
+  },
+  "durable_objects": {
+    "bindings": [{"name": "ROOMS", "class_name": "GameRoom"}]
+  },
+  "migrations": [{"tag": "v1", "new_sqlite_classes": ["GameRoom"]}]
+}
