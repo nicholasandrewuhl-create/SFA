@@ -40,3 +40,35 @@ button.scorecard:hover,button.scorecard:focus-visible{background:#284851;border-
 .score-detail{margin-top:14px}
 .modal h3{font-size:15px;margin:18px 0 9px}
 @media(max-width:620px){.director-banner{top:100px;font-size:12px}.director-rank{flex-wrap:wrap}.scoretrend{font-size:8px}}
+
+/* V1.3 classroom broadcast — keep existing student controls and layouts unchanged */
+.broadcast-body{display:grid;grid-template-columns:minmax(0,1.9fr) minmax(335px,.83fr);height:calc(100vh - 80px);min-height:620px;background:#071c29;overflow:hidden}
+.broadcast-map{min-width:0;min-height:0}
+.broadcast-map .mapwrap{height:100%;min-height:0}
+.broadcast-map .mapviewport{min-height:0;height:calc(100% - 24px)}
+.broadcast-map .map-svg{max-height:calc(100vh - 155px)}
+.broadcast-feed{min-width:0;overflow-y:auto;border-left:1px solid #42606b;background:#0c2834;padding:20px;scrollbar-color:#5d7a85 #0c2834}
+.broadcast-heading h1{font-family:Georgia,serif;font-size:28px;line-height:1.1;margin:3px 0 6px;color:#fff1d3}
+.broadcast-sub{font-size:12px;color:#a4c6cb}
+.broadcast-card{margin-top:15px;background:#123642;border:1px solid #3b6571;border-radius:12px;padding:13px}
+.broadcast-card h2{font-size:16px;margin:0 0 9px;color:#f0e9d7}
+.broadcast-standing,.rush-line{display:flex;justify-content:space-between;gap:9px;padding:7px 2px;border-bottom:1px solid #345965;font-size:12px}
+.broadcast-standing strong,.rush-line strong{color:#e4ca86;white-space:nowrap}
+.broadcast-card p{font-size:12px;line-height:1.45;color:#c0d2d3}
+.broadcast-event-lead{border-left:4px solid #e7c57c;padding:9px 11px;background:#223e42;margin-bottom:9px}
+.broadcast-event-lead span{display:block;color:#d9c39b;font-size:11px;margin-bottom:4px}
+.broadcast-event-lead strong{display:block;font-size:14px;line-height:1.35}
+.broadcast-timeline{max-height:320px;overflow-y:auto}
+.broadcast-entry{border-bottom:1px solid #32525a;padding:9px 0}
+.broadcast-entry small{color:#9bbfc8;font-size:10px}
+.broadcast-entry p{margin:3px 0 0}
+.broadcast-alert{border:2px solid #edbb6e;border-radius:10px;background:#4e3527;padding:10px 13px;margin-top:13px}
+.broadcast-alert p{color:#fff3df}
+.broadcast-footnote{font-size:11px;color:#b0c8ce;line-height:1.5}
+@media(max-width:1000px){.broadcast-body{display:flex;flex-direction:column;height:auto;min-height:0;overflow:visible}.broadcast-map{height:65vh;min-height:430px}.broadcast-feed{overflow:visible}.broadcast-map .map-svg{max-height:58vh}}
+@media(prefers-reduced-motion:reduce){.broadcast-body *{animation:none!important;transition:none!important}}
+/* Browser-only classroom deployment: projector button fits school laptop widths. */
+a.btn{display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
+a.btn:focus-visible{outline:3px solid #ffe09b;outline-offset:3px}
+.topactions{flex-wrap:wrap;justify-content:flex-end}
+@media(max-width:1400px){.topbar{gap:11px;padding:10px 14px}.topmiddle{gap:6px}.topactions{gap:5px}.topactions .pill{font-size:9px}}

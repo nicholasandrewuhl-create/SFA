@@ -4,6 +4,11 @@ export const IDS=FACTIONS.map(f=>f.id);
 export const REG=Object.fromEntries(REGIONS.map(r=>[r.id,r]));
 export const TEAM=Object.fromEntries(FACTIONS.map(f=>[f.id,f]));
 export const CHAOS_MODES=['classic','spicy','mayhem'];
+export const PLAY_STYLES=['turn','rush'];
+export const playStyle=s=>s.playStyle==='rush'?'rush':'turn';
+export const RUSH_ACTIONS=3;
+export const rushMovesLeft=(s,team)=>Math.max(0,RUSH_ACTIONS-(s.rushMoves?.[team]||0));
+export const rushAllDone=s=>IDS.every(id=>rushMovesLeft(s,id)===0);
 export const modeOf=s=>CHAOS_MODES.includes(s.chaosMode)?s.chaosMode:'spicy';
 export const tensionOf=s=>Number.isFinite(s.tension)?s.tension:20;
 export function changeTension(s,base,reason=''){
@@ -21,11 +26,11 @@ const LIMIT=100;const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 export function clone(x){return structuredClone(x)}
 export function roll(s){s.rng=(Math.imul(s.rng,1664525)+1013904223)>>>0;return s.rng/4294967296}
 export function log(s,msg,type='news'){s.log.unshift({id:++s.seq,round:s.round,year:s.year,msg,type});s.log=s.log.slice(0,120)}
-export function createGame(seed=1357911,mode='spicy'){
+export function createGame(seed=1357911,mode='spicy',style='turn'){
  if(!CHAOS_MODES.includes(mode))mode='spicy';
  const s={version:1,seed, rng:seed>>>0, round:1,year:1880,active:0,order:IDS.slice(),seq:0,
  phase:'lobby',finished:false,winner:null,acted:false,minored:false,events:[],log:[],offers:[],
- chaosMode:mode,tension:20,tensionMilestones:[],paused:false,directorEvent:null,directorUses:{round:1,count:0},scoreBaseline:null,sanctions:{},
+ chaosMode:mode,playStyle:PLAY_STYLES.includes(style)?style:'turn',rushMoves:Object.fromEntries(IDS.map(id=>[id,0])),rushMinors:Object.fromEntries(IDS.map(id=>[id,false])),tension:20,tensionMilestones:[],paused:false,directorEvent:null,directorUses:{round:1,count:0},scoreBaseline:null,sanctions:{},
  regions:{}, teams:{}, history:[], handledCommands:{}, options:{turnSeconds:45},lastAction:null};
  for(const r of REGIONS)s.regions[r.id]={status:'independent',owner:null,claimant:null,defense:r.defense,trust:50,prepared:0,scoutedBy:null};
  for(const f of FACTIONS)s.teams[f.id]={cash:f.cash,military:f.military,logistics:f.logistics,influence:f.influence,reputation:6,territories:0,used:false,comebackUsed:false,prepared:null,boost:0,objectiveMet:0,points:0};
@@ -71,8 +76,9 @@ export function preview(s,team,id,action){
  if(s.finished)return {ok:false,reason:'The game has ended.'};
  if(s.paused)return {ok:false,reason:'The teacher has paused the game for a classroom event.'};
  if(s.phase!=='playing')return {ok:false,reason:'The game has not started.'};
- if(s.acted)return {ok:false,reason:'This turn’s major action has been used.'};
- if(activeTeam(s)!==team)return {ok:false,reason:'Another country is taking its turn.'};
+ if(playStyle(s)==='rush'){if(rushMovesLeft(s,team)<=0)return {ok:false,reason:'Your country has completed its three expansion actions this wave. Wait for the next wave.'};}
+ else {if(s.acted)return {ok:false,reason:'This turn’s major action has been used.'};
+ if(activeTeam(s)!==team)return {ok:false,reason:'Another country is taking its turn.'};}
  let cost=a.cost;
  if(modeOf(s)!=='classic'&&tensionOf(s)>=70&&action==='conquer')cost+=30;
  const coastal=f.ability==='coastal'&&['Angola','Mozambique'].includes(r.sourceCountry);
@@ -85,6 +91,9 @@ export function preview(s,team,id,action){
  if(t.status==='independent-secure'&&action!=='negotiate'&&action!=='conquer')return {ok:false,reason:'This state’s independence has been sustained. Only negotiation or costly invasion can alter it.'};
  if(t.owner&&['explore','negotiate','claim'].includes(action))return {ok:false,reason:'This region is already under established European control.'};
  if(action==='claim'&&t.claimant===team)return {ok:false,reason:'You already have a claim. Secure control or choose another territory.'};
+ // Rush races are resolved on the trusted server: a rival's surviving claim
+ // cannot be overwritten by clicking Claim again. Challenge it explicitly.
+ if(t.claimant&&t.claimant!==team&&['explore','negotiate','claim'].includes(action))return {ok:false,reason:'Another European power reached this region first. Try a territorial challenge or military expedition; African political control remains a separate question.'};
  if(['conquer','challenge','claim'].includes(action)&&protectedByPact(s,team,id))return {ok:false,reason:`Nonaggression treaty protects this European claim. Break the treaty from Diplomacy before challenging ${TEAM[t.claimant||t.owner].name}.`};
  if(action==='consolidate'&&t.claimant!==team)return {ok:false,reason:'You can only secure control of your own claim.'};
  if(action==='challenge'&&(!t.claimant||t.claimant===team||t.status==='controlled'))return {ok:false,reason:'Choose an unresolved rival claim. Fully controlled territories cannot be stolen with a diplomatic challenge.'};
@@ -124,7 +133,8 @@ function expand(s,team,id,limit=1,level='claimed'){let choices=REG[id].neighbors
  for(const key of choices){if(taken>=limit)break;if(roll(s)>.86)continue;acquire(s,team,key,level==='controlled'&&s.regions[key].defense<66?'controlled':'claimed');taken++}
  return taken;}
 export function act(s,team,id,action){const o=preview(s,team,id,action);if(!o.ok)return {ok:false,reason:o.reason};
- const n=clone(s);const t=n.regions[id],p=n.teams[team];p.cash-=o.cost;p.military=clamp(p.military-o.military,0,100);n.acted=true;
+ const n=clone(s);const t=n.regions[id],p=n.teams[team];p.cash-=o.cost;p.military=clamp(p.military-o.military,0,100);
+ if(playStyle(n)==='rush')n.rushMoves[team]=(n.rushMoves[team]||0)+1;else n.acted=true;
  const chance=roll(n)*100;let result=chance<o.success?'success':chance<o.success+o.partial?'partial':'failure';
  let text='';const r=REG[id],label=r.name,other=t.claimant;
  if(result==='success'){
@@ -152,10 +162,10 @@ export function act(s,team,id,action){const o=preview(s,team,id,action);if(!o.ok
  if(!p.used && ((TEAM[team].ability==='gambit'&&action==='conquer')||(TEAM[team].ability==='surge'&&['explore','conquer'].includes(action))))p.used=true;
  n.lastAction={team,id,action,result,odds:o,text};log(n,text,result==='failure'?'resistance':'action');return {ok:true,state:n,result,text};
 }
-export function minor(s,team,id,kind){if(s.paused)return {ok:false,reason:'The teacher has paused this game.'};if(activeTeam(s)!==team||s.minored||s.phase!=='playing'||s.finished)return {ok:false,reason:'Minor action unavailable.'};
+export function minor(s,team,id,kind){if(s.paused)return {ok:false,reason:'The teacher has paused this game.'};if((playStyle(s)==='rush'?(s.rushMinors?.[team]||rushMovesLeft(s,team)===0):(activeTeam(s)!==team||s.minored))||s.phase!=='playing'||s.finished)return {ok:false,reason:'Minor action unavailable.'};
  if(!MINORS[kind])return {ok:false,reason:'Unknown minor action.'};
  const p=s.teams[team],cost=MINORS[kind].cost;if(p.cash<cost)return {ok:false,reason:'Insufficient treasury.'};
- const n=clone(s),q=n.teams[team];q.cash-=cost;n.minored=true;
+ const n=clone(s),q=n.teams[team];q.cash-=cost;if(playStyle(n)==='rush')n.rushMinors[team]=true;else n.minored=true;
  if(kind==='invest')q.cash+=90;
  else{if(!REG[id])return {ok:false,reason:'Choose a region first.'};q.prepared=id;q.boost=kind==='scout'?14:20}
  log(n,TEAM[team].name+' prepares its next move.','quiet');return {ok:true,state:n};
@@ -206,8 +216,10 @@ function aiRound(s){
 }
 
 export function endTurn(s){if(s.phase!=='playing'||s.finished)return s;const n=clone(s);
- n.acted=false;n.minored=false;n.active++;
- if(n.active>=n.order.length){n.active=0;n.scoreBaseline=Object.fromEntries(IDS.map(id=>[id,score(n,id).total]));n.round++;n.year=Math.min(1914,1880+(n.round-1)*6);resolveTreatyRound(n);aiRound(n);eventTick(n);log(n,'Round '+n.round+' begins. European powers assess new opportunities.','round');}
+ const rush=playStyle(n)==='rush';
+ if(rush){n.rushMoves=Object.fromEntries(IDS.map(id=>[id,0]));n.rushMinors=Object.fromEntries(IDS.map(id=>[id,false]));n.active=0;}
+ else {n.acted=false;n.minored=false;n.active++;}
+ if(rush||n.active>=n.order.length){n.active=0;n.scoreBaseline=Object.fromEntries(IDS.map(id=>[id,score(n,id).total]));n.round++;n.year=Math.min(1914,1880+(n.round-1)*6);resolveTreatyRound(n);aiRound(n);eventTick(n);log(n,'Round '+n.round+' begins. European powers assess new opportunities.','round');}
  // Never end merely because the year reaches 1914. Conclude when the map is resolved.
  if(Object.values(n.regions).every(isSettled)){
   n.finished=true;n.phase='ended';n.winner=standings(n)[0].id;
@@ -308,7 +320,7 @@ export function directorEvent(s,kind,target){
 export function comebackStatus(s,team){
  const p=s.teams?.[team];if(!p||s.phase!=='playing'||s.finished)return {ok:false,reason:'The campaign is not active.'};
  if(modeOf(s)==='classic')return {ok:false,reason:'Underdog Gambit is available in Spicy and Mayhem modes.'};
- if(activeTeam(s)!==team)return {ok:false,reason:'Wait until your country’s turn.'};
+ if(playStyle(s)!=='rush'&&activeTeam(s)!==team)return {ok:false,reason:'Wait until your country’s turn.'};
  if(p.comebackUsed)return {ok:false,reason:'You have already used your one-time gambit.'};
  const own=score(s,team).total,leader=standings(s)[0].total;
  if(leader-own<15)return {ok:false,reason:'The leading power must be at least 15 points ahead.',gap:leader-own};

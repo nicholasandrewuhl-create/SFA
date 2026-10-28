@@ -1,7 +1,7 @@
 /** Cloudflare Workers + SQLite Durable Object multiplayer server.
  * All authority and sealed negotiation data stay here, never in a student's state snapshot.
  */
-import {createGame,startGame,endTurn,activeTeam,standings,publicState,IDS,clone,log,directorEvent,pauseGame} from '../engine.js';
+import {createGame,startGame,endTurn,activeTeam,standings,publicState,IDS,clone,log,directorEvent,pauseGame,playStyle,rushAllDone} from '../engine.js';
 import {resolveTeamCommand} from '../multiplayer.js';
 
 const CODE=/^[A-HJ-NP-Z2-9]{6}$/;
@@ -16,7 +16,10 @@ function limited(x,max=12000){return typeof x==='string'&&x.length<max}
 async function getBody(request){try{const s=await request.text();if(s.length>12000)return null;return JSON.parse(s)}catch{return null}}
 
 export class GameRoom {
- constructor(ctx,env){this.ctx=ctx;this.env=env;}
+ constructor(ctx,env){this.ctx=ctx;this.env=env;this.queue=Promise.resolve();}
+ // Serialize all room mutations and reads so competing claims resolve against the
+ // latest committed map, never against a stale concurrent snapshot.
+ enqueue(task){const current=this.queue.catch(()=>{}).then(task);this.queue=current.catch(()=>{});return current;}
  async data(){return await this.ctx.storage.get('room')||null;}
  async save(room){await this.ctx.storage.put('room',room)}
  async auth(room,token){if(!room||!limited(token,100))return {role:'none'};const h=await hash(token);if(h===room.teacherHash)return {role:'host'};for(const [id,p] of Object.entries(room.participants))if(p.hash===h)return {role:'student',id,team:p.team||null};return {role:'none'};}
@@ -29,13 +32,15 @@ export class GameRoom {
     if(identity.role==='none'){ws.close(1008,'Session removed');continue}ws.send(JSON.stringify(this.snapshot(room,identity)));
    }catch(e){try{ws.close(1011,'Refresh to reconnect')}catch{}}
  }
- async fetch(req){const url=new URL(req.url);const op=url.pathname.split('/').pop();const room=await this.data();
+ async fetch(req){return this.enqueue(()=>this.handle(req));}
+ async handle(req){const url=new URL(req.url);const op=url.pathname.split('/').pop();const room=await this.data();
   if(op==='create'){
    if(req.method!=='POST')return err('Method not allowed',405);
    if(room)return err('This room code is already in use',409);
    const body=await getBody(req);if(!CODE.test(body?.code||''))return err('Invalid room code');
    const mode=['classic','spicy','mayhem'].includes(body?.chaosMode)?body.chaosMode:'spicy';
-   const token=makeToken(),game=createGame(crypto.getRandomValues(new Uint32Array(1))[0],mode);
+   const style=body?.playStyle==='rush'?'rush':'turn';
+   const token=makeToken(),game=createGame(crypto.getRandomValues(new Uint32Array(1))[0],mode,style);
    const created={code:body.code,teacherHash:await hash(token),participants:{},game,ids:0,receipts:{},createdAt:Date.now()};await this.save(created);
    return json({ok:true,code:body.code,token,snapshot:this.snapshot(created,{role:'host'})},201);
   }
@@ -83,7 +88,7 @@ export class GameRoom {
    if(room.receipts[cacheKey])return json(room.receipts[cacheKey]);
    const result=resolveTeamCommand(room.game,actor,body.command);
    // Advance only after both a major action and a minor action are complete.
-   if (result.ok && result.state.acted && result.state.minored) {
+   if (result.ok && (playStyle(result.state)==='rush'?rushAllDone(result.state):(result.state.acted && result.state.minored))) {
     result.state=endTurn(result.state);
    }
    const receipt={ok:!!result.ok,reason:result.reason||'',result:result.result||null};
