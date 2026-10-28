@@ -78,6 +78,9 @@ export class GameRoom {
    const cacheKey=(who.role==='host'?'host':who.id)+':'+key;
    if(room.receipts[cacheKey])return json(room.receipts[cacheKey]);
    const result=resolveTeamCommand(room.game,actor,body.command);
+if (result.ok && result.state.acted && result.state.minored) {
+  result.state = endTurn(result.state);
+}
    const receipt={ok:!!result.ok,reason:result.reason||'',result:result.result||null};
    room.receipts[cacheKey]=receipt;
    const keys=Object.keys(room.receipts);if(keys.length>600)for(const k of keys.slice(0,150))delete room.receipts[k];
