@@ -1,7 +1,7 @@
 /** Cloudflare Workers + SQLite Durable Object multiplayer server.
  * All authority and sealed negotiation data stay here, never in a student's state snapshot.
  */
-import {createGame,startGame,endTurn,activeTeam,standings,publicState,IDS,clone,log} from '../engine.js';
+import {createGame,startGame,endTurn,activeTeam,standings,publicState,IDS,clone,log,directorEvent,pauseGame} from '../engine.js';
 import {resolveTeamCommand} from '../multiplayer.js';
 
 const CODE=/^[A-HJ-NP-Z2-9]{6}$/;
@@ -34,7 +34,8 @@ export class GameRoom {
    if(req.method!=='POST')return err('Method not allowed',405);
    if(room)return err('This room code is already in use',409);
    const body=await getBody(req);if(!CODE.test(body?.code||''))return err('Invalid room code');
-   const token=makeToken(),game=createGame(crypto.getRandomValues(new Uint32Array(1))[0]);
+   const mode=['classic','spicy','mayhem'].includes(body?.chaosMode)?body.chaosMode:'spicy';
+   const token=makeToken(),game=createGame(crypto.getRandomValues(new Uint32Array(1))[0],mode);
    const created={code:body.code,teacherHash:await hash(token),participants:{},game,ids:0,receipts:{},createdAt:Date.now()};await this.save(created);
    return json({ok:true,code:body.code,token,snapshot:this.snapshot(created,{role:'host'})},201);
   }
@@ -65,12 +66,15 @@ export class GameRoom {
    if(who.role!=='host')return err('Teacher access required',403);
    let g=room.game;
    if(body.action==='start'){if(g.phase!=='lobby')return err('Game has already started');g=startGame(g)}
-   else if(body.action==='next'){if(g.phase!=='playing'||g.finished)return err('Game is not active');g=endTurn(g)}
+   else if(body.action==='next'){if(g.phase!=='playing'||g.finished)return err('Game is not active');if(g.paused)return err('Resume the game before advancing turns');g=endTurn(g)}
+   else if(body.action==='pause'||body.action==='resume'){const r=pauseGame(g,body.action==='pause');if(!r.ok)return err(r.reason);g=r.state}
+   else if(body.action==='director'){const r=directorEvent(g,body.kind,body.target);if(!r.ok)return err(r.reason);g=r.state}
    else if(body.action==='end'){if(g.finished)return err('Game already ended');g=clone(g);g.finished=true;g.phase='ended';g.winner=standings(g)[0].id;log(g,'Teacher ended the campaign. Final strategy scores are recorded.','historical')}
    else return err('Unknown teacher control');
    room.game=g;await this.save(room);await this.announce(room);return json({ok:true,snapshot:this.snapshot(room,who)});
   }
   if(op==='command'){
+   if(room.game.paused)return err('The teacher has paused the game for a classroom event.',409);
    const key=body.requestId;if(!limited(key,90)||!/^[-\w]{10,89}$/.test(key))return err('Request ID missing');
    const actor=who.role==='host'?body.team:who.team;
    if(who.role==='host'&&!IDS.includes(actor))return err('Select an existing country');
@@ -78,9 +82,10 @@ export class GameRoom {
    const cacheKey=(who.role==='host'?'host':who.id)+':'+key;
    if(room.receipts[cacheKey])return json(room.receipts[cacheKey]);
    const result=resolveTeamCommand(room.game,actor,body.command);
-if (result.ok && result.state.acted && result.state.minored) {
-  result.state = endTurn(result.state);
-}
+   // Advance only after both a major action and a minor action are complete.
+   if (result.ok && result.state.acted && result.state.minored) {
+    result.state=endTurn(result.state);
+   }
    const receipt={ok:!!result.ok,reason:result.reason||'',result:result.result||null};
    room.receipts[cacheKey]=receipt;
    const keys=Object.keys(room.receipts);if(keys.length>600)for(const k of keys.slice(0,150))delete room.receipts[k];

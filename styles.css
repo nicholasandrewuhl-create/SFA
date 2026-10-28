@@ -9,3 +9,34 @@
 .share-url{background:#071e29;border:1px solid #48666b;border-radius:8px;padding:11px;color:#f7db9d;font-size:13px;line-height:1.5;overflow-wrap:anywhere;user-select:all}
 .share-card .btnrow .btn{flex:1}
 @media(max-width:1200px){.topactions .btn.primary{padding:8px 9px}}
+
+/* Accessibility and low-vision improvements, built on the existing layout. */
+button:focus-visible, input:focus-visible, select:focus-visible, [role="button"]:focus-visible {
+  outline:3px solid #ffe19a!important;outline-offset:3px;box-shadow:0 0 0 5px #071924;
+}
+button.btn:not(.mini){min-height:42px}
+button.btn.mini{min-height:36px}
+.action{min-height:46px}
+.region[role="button"]{cursor:pointer;pointer-events:auto}
+.region[role="button"]:focus-visible{stroke:#ffe19a;stroke-width:5px;filter:brightness(1.3)}
+.chaos-fill{background:linear-gradient(90deg,#5b9d89,#dca85d,#cc7b6a)}
+.chaos-fill{transition:width .25s ease}
+.sectswitch .btn{flex:1;min-width:65px}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+@media(prefers-contrast:more){:root{--muted:#d5e2df;--border:#a8c3c2}.btn,.action{border-width:2px}.feedentry{font-size:13px}}
+
+/* Live director controls and accessible scoreboard, additive to existing UI. */
+button.scorecard{width:100%;color:inherit;font-family:inherit;text-align:left;font-size:inherit;background:transparent;display:flex;align-items:center}
+button.scorecard:hover,button.scorecard:focus-visible{background:#284851;border-color:#d9b66e}
+.scorevalue{display:flex;flex-direction:column;align-items:flex-end;min-width:42px}
+.scoretrend{color:#bce0c9;font-weight:600;font-size:9px;white-space:nowrap}
+.director-banner{position:fixed;left:50%;top:82px;transform:translateX(-50%);z-index:40;max-width:min(830px,94vw);width:100%;display:flex;flex-wrap:wrap;gap:9px;align-items:center;background:#372e21;border:2px solid #e2bb75;border-radius:10px;box-shadow:0 8px 24px #000a;padding:12px 16px;color:#fff1d5;font-size:13px;line-height:1.5}
+.director-banner strong{white-space:nowrap;letter-spacing:.04em}
+.director-status{padding:12px;border:1px solid #6b917c;background:#153941;border-radius:8px;font-size:13px;font-weight:700}
+.director-rank{display:flex;align-items:center;justify-content:space-between;gap:8px;border-bottom:1px solid #355560;padding:8px 0;font-size:12px}
+.director-rank span{flex:1}.director-rank strong{color:#f0cc87}
+.director-fire{width:100%;margin-top:13px;padding:12px}
+.director-log{border-left:2px solid #d2ae67;padding:5px 10px;background:#143743}
+.score-detail{margin-top:14px}
+.modal h3{font-size:15px;margin:18px 0 9px}
+@media(max-width:620px){.director-banner{top:100px;font-size:12px}.director-rank{flex-wrap:wrap}.scoretrend{font-size:8px}}

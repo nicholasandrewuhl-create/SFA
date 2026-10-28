@@ -1,9 +1,9 @@
 /** Host-authoritative classroom command resolver. The teacher browser is the only
  * state writer. Firebase rules must stop student writes to state/private branches.
  * Pure module so seven simulated clients can exercise exactly the same path. */
-import {act,minor,propose,respond,betray,special,IDS,REG,clone} from './engine.js';
+import {act,minor,propose,respond,betray,special,comebackGambit,IDS,REG,clone} from './engine.js';
 import {ACTIONS,MINORS} from './data/factions.js';
-export const COMMAND_TYPES=['action','minor','offer','respond','betray','special'];
+export const COMMAND_TYPES=['action','minor','offer','respond','betray','special','gambit'];
 const fail=reason=>({ok:false,reason});
 export function resolveTeamCommand(state,team,cmd){
  if(!IDS.includes(team))return fail('You have not been assigned a country.');
@@ -25,8 +25,9 @@ export function resolveTeamCommand(state,team,cmd){
    return respond(state,cmd.offerId,team,cmd.accept);
   case 'betray':
    if(!IDS.includes(cmd.other))return fail('Unknown treaty partner.');
-   return betray(state,team,cmd.other);
+   return betray(state,team,cmd.other,typeof cmd.offerId==='string'?cmd.offerId:null);
   case 'special':return special(state,team);
+  case 'gambit':if(typeof cmd.id!=='string'||!REG[cmd.id])return fail('Choose a valid region first.');return comebackGambit(state,team,cmd.id);
  }
  return fail('Unknown command.');
 }
